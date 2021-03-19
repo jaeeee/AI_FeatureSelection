@@ -88,12 +88,14 @@ double leave_one_out(const dataset& data,const std::vector<int>& features) {
             return distance(a, data.rows[i], features) < distance(b, data.rows[i], features);
         });
 
-        if(distance(*min1_iterator,data.rows[i],features) <= distance(*min2_iterator,data.rows[i],features)) {
+        if(i == data.rows.size()-1 ||
+            (i != 0 && distance(*min1_iterator,data.rows[i],features) <= distance(*min2_iterator,data.rows[i],features))) {
             if(min1_iterator->classifier == data.rows[i].classifier) {
                 ++num_correct;
             }
         }
-        else if (distance(*min1_iterator, data.rows[i], features) > distance(*min2_iterator, data.rows[i], features)) {
+        else if (i==0 ||
+                (distance(*min1_iterator, data.rows[i], features) > distance(*min2_iterator, data.rows[i], features))) {
             if (min2_iterator->classifier == data.rows[i].classifier) {
                 ++num_correct;
             }
