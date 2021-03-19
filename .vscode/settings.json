@@ -2,6 +2,22 @@
     "files.associations": {
         "iosfwd": "c",
         "fstream": "c",
-        "vector": "c"
+        "vector": "c",
+        "deque": "c",
+        "list": "c",
+        "xstring": "c",
+        "array": "c",
+        "bitset": "c",
+        "initializer_list": "c",
+        "type_traits": "c",
+        "xhash": "c",
+        "xtree": "c",
+        "xutility": "c",
+        "*.ipp": "cpp",
+        "atomic": "cpp",
+        "ios": "cpp",
+        "system_error": "cpp",
+        "xiosbase": "cpp",
+        "iostream": "cpp"
     }
 }
