@@ -5,6 +5,7 @@
 #include <sstream>
 #include <cmath>
 #include <algorithm>
+#include <chrono>
 
 using namespace std;
 
@@ -19,15 +20,15 @@ using namespace std;
 
 struct row {
     int classifier = 0;
-    std::vector<double> features;
+    vector<double> features;
 };
 
 struct dataset {
-    std::vector<row> rows;
+    vector<row> rows;
 };
 
 struct featureSubset {
-    std::vector<int> features;
+    vector<int> features;
     double accuracy = 0;
 };
 
@@ -69,7 +70,7 @@ dataset parseData(string fname) {
     return set;
 }
 
-double distance(const row& r1,const row& r2,const std::vector<int>& features) {
+double distance(const row& r1,const row& r2,const vector<int>& features) {
     double sum = 0;
     for(const auto feature:features) {
         sum += (r1.features[feature] - r2.features[feature]) * (r1.features[feature] - r2.features[feature]);
@@ -77,14 +78,14 @@ double distance(const row& r1,const row& r2,const std::vector<int>& features) {
     return sum;
 }
 
-double leave_one_out(const dataset& data,const std::vector<int>& features) {    
+double leave_one_out(const dataset& data,const vector<int>& features) {    
     int num_correct = 0;
     for(int i = 0;i<data.rows.size();++i) {
-        const auto min1_iterator = std::min_element(data.rows.begin(), data.rows.begin() + i,[&](const auto& a,const auto& b) {
+        const auto min1_iterator = min_element(data.rows.begin(), data.rows.begin() + i,[&](const auto& a,const auto& b) {
             return distance(a, data.rows[i], features) < distance(b, data.rows[i], features);
         });
 
-        const auto min2_iterator = std::min_element(data.rows.begin()+i+1, data.rows.end(), [&](const auto& a, const auto& b) {
+        const auto min2_iterator = min_element(data.rows.begin()+i+1, data.rows.end(), [&](const auto& a, const auto& b) {
             return distance(a, data.rows[i], features) < distance(b, data.rows[i], features);
         });
 
@@ -106,15 +107,15 @@ double leave_one_out(const dataset& data,const std::vector<int>& features) {
     
 }
 
-std::vector<featureSubset> forwardSelection(const dataset& data) {
-    std::vector<featureSubset> subsets;
-    std::vector<int> current_feature_subset;
+vector<featureSubset> forwardSelection(const dataset& data) {
+    vector<featureSubset> subsets;
+    vector<int> current_feature_subset;
     for (int _ = 0; _ < (int)data.rows[0].features.size();++_) {
         double current_max_accuracy = -1;
         int best_feature_so_far = -1;
         for (int i = 0; i < (int)data.rows[0].features.size(); ++i) {
             //select feature i
-            if (std::find(current_feature_subset.begin(), current_feature_subset.end(),i) != current_feature_subset.end()) {
+            if (find(current_feature_subset.begin(), current_feature_subset.end(),i) != current_feature_subset.end()) {
                 continue;
             }
             current_feature_subset.push_back(i);
@@ -129,8 +130,37 @@ std::vector<featureSubset> forwardSelection(const dataset& data) {
         }
         current_feature_subset.push_back(best_feature_so_far);
         subsets.push_back({current_feature_subset,current_max_accuracy});
+        cout << "Feature set " << printFeatureList(current_feature_subset) << " was best, accuracy is " << current_max_accuracy << "%\n";
     }
     return subsets;
+}
+
+vector<featureSubset> backwardsElimination(const dataset& data) {
+    vector<featureSubset> subsets;
+    vector<int> current_features(data.rows[0].features.size());
+    for(int i = 0;i<current_features.size();++i) {
+        current_features[i] = i;
+    }
+
+    while (current_features.size()>1) {
+        double best_accuracy = -1;
+        vector<int> best_next_subset;
+        for(int i = 0;i<current_features.size();++i) {
+            auto next_subset = current_features;
+            swap(next_subset[i], next_subset.back());
+            next_subset.pop_back();
+            const double accuracy = leave_one_out(data, next_subset);
+             cout << "\tUsing feature(s) " << printFeatureList(next_subset) << " accuracy is " << accuracy << "%\n";  
+            if(accuracy>best_accuracy) {
+                best_accuracy = accuracy;
+                best_next_subset = move(next_subset);
+            }
+        }
+        current_features = best_next_subset;
+        cout << "Feature set " << printFeatureList(best_next_subset) << " was best, accuracy is " << best_accuracy << "%\n";
+        subsets.push_back({ move(best_next_subset),best_accuracy });
+    }
+    return subsets;    
 }
 
 int main()
@@ -159,15 +189,25 @@ int main()
     cin >> select_algo;
     if (select_algo == 1) {
         cout << "Running forward selection" << endl;
+        auto start = chrono::steady_clock::now();
         auto r = forwardSelection(parsed_data);
         const auto& best_subset = *max_element(r.begin(),r.end(),[](const auto& a,const auto& b){return a.accuracy < b.accuracy;});
+        cout << "Best subset is " << printFeatureList(best_subset.features) << " accuracy is " << best_subset.accuracy << endl;
+        auto end = chrono::steady_clock::now();
+        cout << "Algorithm took " << chrono::duration_cast<chrono::milliseconds>(end - start).count() << "ms." << endl;
     }
     if (select_algo == 2) {
+        auto start = chrono::steady_clock::now();
         cout << "Running backward elimination" << endl;
+        auto r = backwardsElimination(parsed_data);
+        const auto& best_subset = *max_element(r.begin(),r.end(),[](const auto& a,const auto& b){return a.accuracy < b.accuracy;});
+        cout << "Best subset is " << printFeatureList(best_subset.features) << " accuracy is " << best_subset.accuracy << endl;
+          auto end = chrono::steady_clock::now();
+        cout << "Algorithm took " << chrono::duration_cast<chrono::milliseconds>(end - start).count() << "ms." << endl;
     }
     cout << "This dataset has " << parsed_data.rows.at(0).features.size() << " features (not including the class_attribute attribute), with " 
     << parsed_data.rows.size() << " instances" << endl;
-    cout << "Running nearest neighbor with all " << " features, using 'leaving-one-out' evaluation, I get an accuracy of " << endl;
+    // cout << "Running nearest neighbor with all " << " features, using 'leaving-one-out' evaluation, I get an accuracy of " << endl;
     return 0;
 }
 
