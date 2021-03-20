@@ -9,15 +9,6 @@
 
 using namespace std;
 
-// struct row {
-//     int class_attribute;
-//     vector<double> features;
-// };
-
-// struct data_set {
-//     vector<row> rows;
-// };
-
 struct row {
     int classifier = 0;
     vector<double> features;
